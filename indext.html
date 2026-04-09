@@ -1,0 +1,505 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Toy & Number Master: 15-Round Challenge</title>
+    <style>
+        :root {
+            --primary: #ff4757;
+            --secondary: #2f3542;
+            --success: #2ed573;
+            --info: #1e90ff;
+            --warning: #ffa502;
+            --bg: #f1f2f6;
+            --white: #ffffff;
+        }
+
+        body {
+            font-family: 'Comic Sans MS', 'Chalkboard SE', cursive, sans-serif;
+            background-color: var(--bg);
+            margin: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            overflow: hidden;
+        }
+
+        #game-container {
+            width: 960px;
+            height: 650px;
+            background: var(--white);
+            border-radius: 25px;
+            box-shadow: 0 15px 40px rgba(0,0,0,0.2);
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        /* --- UI Components --- */
+        .navbar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 15px 25px;
+            background: var(--secondary);
+            color: white;
+            z-index: 10000; /* Extremely high to stay above everything */
+            position: relative;
+        }
+
+        .btn-home {
+            padding: 8px 20px;
+            background: var(--primary);
+            border: none;
+            border-radius: 12px;
+            color: white;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 16px;
+            transition: 0.2s;
+            display: none; /* Controlled by JS */
+        }
+        .btn-home:hover { transform: scale(1.05); background: #ff3344; }
+
+        .round-indicator {
+            background: rgba(255,255,255,0.2);
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-size: 16px;
+            font-weight: bold;
+        }
+
+        /* --- Screens --- */
+        .screen {
+            flex: 1;
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            position: relative;
+            z-index: 10;
+        }
+        .active { display: flex; }
+
+        /* --- Dashboard --- */
+        .menu-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 20px;
+            width: 100%;
+            max-width: 850px;
+        }
+        .menu-card {
+            background: var(--white);
+            border: 4px solid #eee;
+            border-radius: 25px;
+            padding: 25px;
+            cursor: pointer;
+            transition: all 0.3s;
+            text-align: center;
+        }
+        .menu-card:hover {
+            transform: translateY(-10px);
+            border-color: var(--info);
+            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+        }
+        .menu-card i { font-size: 55px; display: block; margin-bottom: 10px; }
+        .menu-card strong { font-size: 20px; display: block; margin-bottom: 5px; }
+
+        /* --- Visual Display --- */
+        .visual-display {
+            height: 260px;
+            width: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 15px;
+            flex-wrap: wrap;
+            margin-bottom: 25px;
+            background: #fafafa;
+            border-radius: 20px;
+            padding: 10px;
+            box-sizing: border-box;
+            border: 2px dashed #ddd;
+        }
+        .visual-display img { max-height: 240px; border-radius: 15px; object-fit: contain; }
+        .toy-emoji { font-size: 75px; }
+
+        /* --- Spelling Bee --- */
+        .balloon-area { display: flex; flex-wrap: wrap; justify-content: center; gap: 20px; max-width: 750px; }
+        .balloon {
+            width: 75px; height: 95px; background: var(--warning); border-radius: 50% 50% 50% 50% / 40% 40% 60% 60%;
+            display: flex; align-items: center; justify-content: center; color: white; font-size: 36px;
+            cursor: pointer; position: relative; transition: 0.2s;
+            box-shadow: 0 5px 0 rgba(0,0,0,0.1);
+            text-transform: lowercase;
+        }
+        .balloon.popped { visibility: hidden; opacity: 0; }
+        .slot {
+            width: 45px; border-bottom: 4px solid var(--secondary); font-size: 42px; 
+            text-align: center; font-weight: bold; text-transform: lowercase;
+        }
+
+        /* --- Options --- */
+        .options-container { display: grid; grid-template-columns: 1fr; gap: 12px; width: 420px; }
+        .btn-opt { 
+            padding: 18px; font-size: 22px; background: var(--info); color: white; 
+            border: none; border-radius: 15px; cursor: pointer; font-weight: bold;
+        }
+        .btn-opt:hover { background: #007ceb; }
+
+        /* --- Map --- */
+        .hunt-map {
+            width: 100%; height: 400px; background-size: cover; background-position: center; border-radius: 20px;
+            position: relative; border: 5px solid #eee; overflow: hidden;
+        }
+        .gift { position: absolute; font-size: 55px; cursor: pointer; }
+
+        #feedback {
+            position: absolute; bottom: 30px; font-size: 32px; font-weight: bold; width: 100%; text-align: center; pointer-events: none;
+            text-shadow: 2px 2px 0 #fff; z-index: 5000;
+        }
+
+        input[type="text"] {
+            padding: 15px; font-size: 26px; border: 4px solid var(--secondary); border-radius: 15px; text-align: center; width: 280px;
+        }
+
+        #screen-finish { background: rgba(255,255,255,0.98); z-index: 500; }
+    </style>
+</head>
+<body>
+
+<div id="game-container">
+    <div class="navbar">
+        <div id="status-text" style="font-weight: bold; font-size: 20px;">Toy Master Challenge</div>
+        <div id="round-indicator" class="round-indicator" style="display:none;">Round 1/15</div>
+        <div style="font-size: 22px; font-weight: bold;">SCORE: <span id="score">0</span></div>
+        <button class="btn-home" id="home-btn" onclick="goHome()">HOME</button>
+    </div>
+
+    <!-- Main Menu -->
+    <div id="screen-menu" class="screen active">
+        <h1 style="color: var(--primary); font-size: 45px; margin-bottom: 40px;">🎁 Practice Center (15 Rounds)</h1>
+        <div class="menu-grid">
+            <div class="menu-card" onclick="initGame('spelling')"><i>🎈</i><strong>1. Spelling Bee</strong><small>Lowercase spelling</small></div>
+            <div class="menu-card" onclick="initGame('counting')"><i>🔢</i><strong>2. Counting Quest</strong><small>One or Many?</small></div>
+            <div class="menu-card" onclick="initGame('master')"><i>✍️</i><strong>3. Spelling Master</strong><small>Production test</small></div>
+            <div class="menu-card" onclick="initGame('hunt')"><i>🔍</i><strong>4. Scavenger Hunt</strong><small>Find hidden objects</small></div>
+            <div class="menu-card" onclick="initGame('grammar')"><i>🔤</i><strong>5. Grammar Pick</strong><small>Noun Suffix -s</small></div>
+        </div>
+    </div>
+
+    <!-- Game Screens -->
+    <div id="screen-spelling" class="screen">
+        <div style="font-size: 110px; color: var(--info); font-weight: bold;" id="spell-target-num">8</div>
+        <div id="spell-slots" style="display: flex; gap: 15px; margin: 40px 0; min-height: 60px;"></div>
+        <div class="balloon-area" id="balloon-area"></div>
+    </div>
+
+    <div id="screen-counting" class="screen">
+        <div class="visual-display" id="count-visuals"></div>
+        <div class="options-container" id="count-options"></div>
+    </div>
+
+    <div id="screen-master" class="screen">
+        <div class="visual-display" id="master-visuals"></div>
+        <p style="font-size: 26px; font-weight: bold;">How many? Type the number word:</p>
+        <div style="display: flex; gap: 15px;">
+            <input type="text" id="master-input" placeholder="..." autocomplete="off">
+            <button class="btn-opt" onclick="checkMaster()" style="padding: 15px 30px;">OK</button>
+        </div>
+    </div>
+
+    <div id="screen-hunt" class="screen">
+        <div class="hunt-map" id="hunt-map" style="background-image: url('截圖%202026-04-09%20晚上10.21.39.png');"></div>
+        <div id="hunt-ui" style="margin-top: 20px; text-align: center;">
+            <p id="hunt-prompt" style="font-size: 24px; font-weight: bold; color: var(--secondary);">Find the hidden gift!</p>
+            <div id="hunt-input-zone" style="display:none; gap:15px; justify-content: center;">
+                <input type="text" id="hunt-input" placeholder="Spell the word...">
+                <button class="btn-opt" onclick="checkHunt()">CHECK</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="screen-grammar" class="screen">
+        <div class="visual-display" id="grammar-visuals"></div>
+        <p style="font-size: 28px; font-weight: bold;">Which one is correct?</p>
+        <div class="options-container" id="grammar-options"></div>
+    </div>
+
+    <!-- Finish Screen -->
+    <div id="screen-finish" class="screen">
+        <h1 style="color: var(--success); font-size: 60px;">Challenge Complete!</h1>
+        <p style="font-size: 35px;">Game Score: <span id="finish-score">0</span></p>
+        <button class="btn-home" style="padding: 20px 50px; font-size: 26px; margin-top: 30px; display: block;" onclick="goHome()">Back to Menu</button>
+    </div>
+
+    <div id="feedback"></div>
+</div>
+
+<script>
+    const numberWords = ["zero", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten", "eleven", "twelve"];
+    
+    // Dataset with all uploaded image filenames
+    const objects = [
+        { name: 'doll', plural: 'dolls', emoji: '🪆', sImg: 'a doll.jpeg', pImg: 'dolls.jpg', pCount: 4 },
+        { name: 'ball', plural: 'balls', emoji: '⚽', sImg: 'a ball.webp', pImg: 'balls.jpeg', pCount: 9 },
+        { name: 'car', plural: 'cars', emoji: '🚗', sImg: 'a car.jpeg', pImg: 'cars.jpeg', pCount: 8 },
+        { name: 'kite', plural: 'kites', emoji: '🪁', sImg: 'a kite.jpeg', pImg: 'kites.jpg', pCount: 11 },
+        { name: 'backpack', plural: 'backpacks', emoji: '🎒', sImg: 'a backpack.jpeg', pImg: 'backpacks.webp', pCount: 9 },
+        { name: 'ruler', plural: 'rulers', emoji: '📏', sImg: 'a ruler.jpg', pImg: 'rulers.jpeg', pCount: 5 },
+        { name: 'chair', plural: 'chairs', emoji: '🪑', sImg: 'a chair.jpeg', pImg: null, pCount: 0 },
+        { name: 'desk', plural: 'desks', emoji: ' desk', sImg: 'a desk.webp', pImg: null, pCount: 0 }
+    ];
+
+    let score = 0;
+    let roundCount = 0;
+    const maxRounds = 15;
+    let currentMode = "";
+    let currentTask = null;
+    let currentSpellIdx = 0;
+    let nextTimeout = null;
+
+    function speak(text) {
+        if (!window.speechSynthesis) return;
+        const msg = new SpeechSynthesisUtterance(text);
+        msg.lang = 'en-US';
+        msg.rate = 0.95;
+        window.speechSynthesis.speak(msg);
+    }
+
+    function getWeightedNum() {
+        // 75% chance for 7-12
+        return Math.random() > 0.25 ? (Math.floor(Math.random() * 6) + 7) : (Math.floor(Math.random() * 6) + 1);
+    }
+
+    function showFeedback(msg, isCorrect) {
+        const f = document.getElementById('feedback');
+        f.innerText = msg;
+        f.style.color = isCorrect ? 'var(--success)' : 'var(--primary)';
+        setTimeout(() => f.innerText = "", 1500);
+    }
+
+    function goHome() {
+        if (nextTimeout) clearTimeout(nextTimeout);
+        document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+        document.getElementById('screen-menu').classList.add('active');
+        document.getElementById('home-btn').style.display = 'none';
+        document.getElementById('round-indicator').style.display = 'none';
+        document.getElementById('status-text').innerText = "Toy Master Challenge";
+        document.getElementById('feedback').innerText = "";
+        currentMode = "";
+    }
+
+    function initGame(mode) {
+        score = 0;
+        roundCount = 0;
+        currentMode = mode;
+        updateScore();
+        document.getElementById('round-indicator').style.display = 'block';
+        document.getElementById('home-btn').style.display = 'block';
+        nextRound();
+    }
+
+    function nextRound() {
+        if (roundCount >= maxRounds) {
+            showFinish();
+            return;
+        }
+        roundCount++;
+        document.getElementById('round-indicator').innerText = `Round ${roundCount}/${maxRounds}`;
+        document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+        document.getElementById(`screen-${currentMode}`).classList.add('active');
+
+        if(currentMode === 'spelling') setupSpelling();
+        else if(currentMode === 'counting') setupCounting();
+        else if(currentMode === 'master') setupMaster();
+        else if(currentMode === 'hunt') setupHunt();
+        else if(currentMode === 'grammar') setupGrammar();
+    }
+
+    function showFinish() {
+        document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+        document.getElementById('screen-finish').classList.add('active');
+        document.getElementById('finish-score').innerText = score;
+        document.getElementById('round-indicator').style.display = 'none';
+        document.getElementById('home-btn').style.display = 'block';
+    }
+
+    function renderObjects(container, num, obj) {
+        container.innerHTML = "";
+        let imgFound = false;
+        
+        // Use encoded URI to handle potential special characters in filenames
+        if(num === 1 && obj.sImg) {
+            const img = document.createElement('img');
+            img.src = encodeURI(obj.sImg);
+            img.onerror = () => fallbackEmojis(container, obj.emoji, 1);
+            container.appendChild(img);
+            imgFound = true;
+        } else if(num === obj.pCount && obj.pImg) {
+            const img = document.createElement('img');
+            img.src = encodeURI(obj.pImg);
+            img.onerror = () => fallbackEmojis(container, obj.emoji, num);
+            container.appendChild(img);
+            imgFound = true;
+        }
+        
+        if (!imgFound) {
+            fallbackEmojis(container, obj.emoji, num);
+        }
+    }
+
+    function fallbackEmojis(container, emoji, num) {
+        container.innerHTML = "";
+        for(let i=0; i<num; i++) {
+            const span = document.createElement('span');
+            span.className = 'toy-emoji';
+            span.innerText = emoji;
+            container.appendChild(span);
+        }
+    }
+
+    // --- GAME 1: SPELLING BEE (Lowercase) ---
+    function setupSpelling() {
+        const num = getWeightedNum();
+        const word = numberWords[num].toLowerCase();
+        currentSpellIdx = 0;
+        currentTask = word;
+        document.getElementById('status-text').innerText = "1. Spelling Bee";
+        document.getElementById('spell-target-num').innerText = num;
+        const slots = document.getElementById('spell-slots');
+        slots.innerHTML = "";
+        for(let i=0; i<word.length; i++) slots.innerHTML += `<div class="slot" id="s-${i}"></div>`;
+        const area = document.getElementById('balloon-area');
+        area.innerHTML = "";
+        const shuffled = word.split('').sort(() => Math.random() - 0.5);
+        shuffled.forEach(char => {
+            const b = document.createElement('div');
+            b.className = 'balloon';
+            b.innerText = char;
+            b.style.backgroundColor = `hsl(${Math.random()*360}, 75%, 60%)`;
+            b.onclick = () => {
+                if(char === currentTask[currentSpellIdx]) {
+                    document.getElementById(`s-${currentSpellIdx}`).innerText = char;
+                    b.classList.add('popped');
+                    currentSpellIdx++;
+                    if(currentSpellIdx === currentTask.length) {
+                        speak(currentTask);
+                        score += 15; updateScore(); showFeedback("Correct Spelling!", true);
+                        nextTimeout = setTimeout(nextRound, 1500);
+                    }
+                } else { showFeedback("Try again!", false); }
+            };
+            area.appendChild(b);
+        });
+    }
+
+    // --- GAME 2: COUNTING QUEST ---
+    function setupCounting() {
+        const num = getWeightedNum();
+        const obj = objects[Math.floor(Math.random()*objects.length)];
+        const visual = document.getElementById('count-visuals');
+        renderObjects(visual, num, obj);
+        const correct = `${numberWords[num]} ${num === 1 ? obj.name : obj.plural}`;
+        let opts = [correct, `${numberWords[num > 1 ? num-1 : num+1]} ${obj.plural}`, `${numberWords[num]} ${num === 1 ? obj.plural : obj.name}`];
+        opts.sort(() => Math.random() - 0.5);
+        const area = document.getElementById('count-options');
+        area.innerHTML = "";
+        opts.forEach(opt => {
+            const btn = document.createElement('button');
+            btn.className = 'btn-opt';
+            btn.innerText = opt;
+            btn.onclick = () => {
+                if(opt === correct) {
+                    score += 10; updateScore(); showFeedback("Brilliant!", true);
+                    nextTimeout = setTimeout(nextRound, 1200);
+                } else { showFeedback("Count carefully!", false); }
+            };
+            area.appendChild(btn);
+        });
+    }
+
+    // --- GAME 3: SPELLING MASTER ---
+    function setupMaster() {
+        const num = getWeightedNum();
+        const obj = objects[Math.floor(Math.random()*objects.length)];
+        renderObjects(document.getElementById('master-visuals'), num, obj);
+        currentTask = numberWords[num].toLowerCase();
+        document.getElementById('status-text').innerText = "3. Spelling Master";
+        document.getElementById('master-input').value = "";
+        document.getElementById('master-input').focus();
+    }
+
+    function checkMaster() {
+        if(document.getElementById('master-input').value.toLowerCase().trim() === currentTask) {
+            score += 20; updateScore(); showFeedback("Perfect Spelling!", true);
+            nextTimeout = setTimeout(nextRound, 1200);
+        } else { showFeedback(`Hint: starts with '${currentTask[0]}'`, false); }
+    }
+
+    // --- GAME 4: SCAVENGER HUNT ---
+    function setupHunt() {
+        document.getElementById('status-text').innerText = "4. Scavenger Hunt";
+        const map = document.getElementById('hunt-map');
+        map.innerHTML = "";
+        document.getElementById('hunt-input-zone').style.display = 'none';
+        document.getElementById('hunt-prompt').innerText = "Find the hidden gift!";
+        const gift = document.createElement('div');
+        gift.className = 'gift'; gift.innerText = "🎁";
+        gift.style.left = (10 + Math.random()*80) + "%";
+        gift.style.top = (10 + Math.random()*80) + "%";
+        const num = getWeightedNum();
+        const obj = objects[Math.floor(Math.random()*objects.length)];
+        gift.onclick = () => {
+            gift.style.display = 'none';
+            currentTask = numberWords[num].toLowerCase();
+            document.getElementById('hunt-prompt').innerHTML = `You found: <span style="font-size:30px;">${obj.emoji.repeat(num)}</span><br>How many ${obj.plural}?`;
+            document.getElementById('hunt-input-zone').style.display = 'flex';
+            document.getElementById('hunt-input').value = "";
+            document.getElementById('hunt-input').focus();
+        };
+        map.appendChild(gift);
+    }
+
+    function checkHunt() {
+        if(document.getElementById('hunt-input').value.toLowerCase().trim() === currentTask) {
+            score += 25; updateScore(); showFeedback("Excellent Find!", true);
+            nextTimeout = setTimeout(nextRound, 1500);
+        } else { showFeedback("Try spelling it again!", false); }
+    }
+
+    // --- GAME 5: GRAMMAR PICK ---
+    function setupGrammar() {
+        const num = Math.random() > 0.5 ? 1 : (Math.floor(Math.random()*5)+2);
+        const obj = objects[Math.floor(Math.random()*objects.length)];
+        renderObjects(document.getElementById('grammar-visuals'), num, obj);
+        const correct = num === 1 ? obj.name : obj.plural;
+        const wrong = num === 1 ? obj.plural : obj.name;
+        let opts = [correct, wrong].sort(() => Math.random() - 0.5);
+        const area = document.getElementById('grammar-options');
+        area.innerHTML = "";
+        opts.forEach(opt => {
+            const btn = document.createElement('button');
+            btn.className = 'btn-opt';
+            btn.innerText = opt;
+            btn.onclick = () => {
+                if(opt === correct) {
+                    score += 10; updateScore(); showFeedback("Grammar Star!", true);
+                    nextTimeout = setTimeout(nextRound, 1200);
+                } else { showFeedback(num === 1 ? "Only one! (No -s)" : "More than one! (Add -s)", false); }
+            };
+            area.appendChild(btn);
+        });
+    }
+
+    function updateScore() { document.getElementById('score').innerText = score; }
+    document.getElementById('master-input').addEventListener('keypress', (e) => { if(e.key === 'Enter') checkMaster(); });
+    document.getElementById('hunt-input').addEventListener('keypress', (e) => { if(e.key === 'Enter') checkHunt(); });
+</script>
+</body>
+</html>
